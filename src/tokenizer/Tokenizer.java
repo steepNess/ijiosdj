@@ -123,7 +123,8 @@ public class Tokenizer {
         it.nextChar();
         char peek = it.peekChar();
         if (peek != '\'') {
-            if (peek == '\\') {
+            if (peek == '\\')
+            {
                 it.nextChar();
                 switch (it.nextChar()) {
                     case '\\':
@@ -147,7 +148,8 @@ public class Tokenizer {
                     default:
                         throw new TokenizeError(ErrorCode.IllegalEscapeSequence, it.previousPos());
                 }
-            } else value = it.nextChar();
+            }
+            else value = it.nextChar();
             if (it.peekChar() == '\'') {
                 it.nextChar();
                 return new Token(TokenType.CHAR_LITERAL, value, startPos, it.currentPos());

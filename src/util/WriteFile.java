@@ -1,11 +1,11 @@
 package util;
 
+import analyser.GlobalDef;
 import instruction.FunctionInstruction;
 import instruction.Instruction;
 import instruction.Operation;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,29 +14,46 @@ public class WriteFile {
 
     public static ArrayList<ArrayList<Instruction>> functions = new ArrayList<>();
 
-    public static void writeFile(String fileName, ArrayList<String> globals, ArrayList<Instruction> instructions,
-                                 ArrayList<Instruction> startInstructions) throws IOException {
+    public static void outFile(String fileName, ArrayList<GlobalDef> globals, ArrayList<Instruction> instructions,
+                               ArrayList<Instruction> startInstructions) throws IOException {
         FileOutputStream out = new FileOutputStream(new File(fileName));
+        //魔数
         out.write(intToByte(0x72303b3e));
+        //版本号
         out.write(intToByte(1));
+        //globals.count
         out.write(intToByte(globals.size()));
+        //globals
+        /*
         for (String global : globals) {
             switch (global) {
+                //全局变量
                 case "0":
+                    //global.isConst 1 slot
                     out.write(0);
+                    //global.value.count 4 slot
                     out.write(intToByte(8));
+                    //global.value.items 8 slot
                     out.write(longToByte(0L));
                     break;
+                //全局常量
                 case "1":
                     out.write(1);
                     out.write(intToByte(8));
                     out.write(longToByte(0L));
                     break;
+                //全局变量的值
                 default:
                     out.write(1);
                     out.write(intToByte(global.length()));
                     out.write(global.getBytes());
             }
+        }*/
+        for(GlobalDef global:globals)
+        {
+            out.write(global.is_const);
+            out.write(global.array_count);
+            out.write(global.array_items);
         }
         functions.add(startInstructions);
         cutFunction(instructions);
@@ -50,14 +67,14 @@ public class WriteFile {
                     out.write(intToByte(functionInstruction.getParamCount()));
                     out.write(intToByte(functionInstruction.getLocalCount()));
                     out.write(intToByte(funcInstructions.size() - 1));
-                } else if (instruction.getParam1() == null)
+                } else if (instruction.getX() == null)
                     out.write(instruction.getOperation().getValue());
                 else {
                     out.write(instruction.getOperation().getValue());
                     if (instruction.getOperation() == Operation.push)
-                        out.write(longToByte((long) instruction.getParam1()));
+                        out.write(longToByte((long) instruction.getX()));
                     else
-                        out.write(intToByte((int) instruction.getParam1()));
+                        out.write(intToByte((int) instruction.getX()));
                 }
             }
         }

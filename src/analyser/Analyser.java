@@ -22,10 +22,12 @@ public class Analyser {
     Token peekedToken = null;
 
     //OPG矩阵
+
     ArrayList<TokenType> terminals = new ArrayList<>(Arrays.asList(TokenType.GT,
             TokenType.LT, TokenType.GE, TokenType.LE, TokenType.EQ, TokenType.NEQ,
             TokenType.PLUS, TokenType.MINUS, TokenType.MUL, TokenType.DIV, TokenType.AS_KW));
     //1=less,2=more
+    /*
     public int[][] matrix = {
             {2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
             {2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1},
@@ -37,24 +39,24 @@ public class Analyser {
             {2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1},
             {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
             {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
-            {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};
+            {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};*/
 
     //栈式符号表
     Stack<Symbol> symbolTable = new Stack<>();
     //分程序索引
     Stack<Integer> index = new Stack<>();
-    //Hash查找
-    HashMap<String, Integer> hashMap = new HashMap<>();
+    //Hash查找中间表
+    HashMap<String, Integer> hashTable = new HashMap<>();
 
     //指令集
     ArrayList<Instruction> instructions;
 
     //start函数指令集
     ArrayList<Instruction> startInstructions;
-    //全局变量
-    ArrayList<String> Globals;
-    //偏移量
-    int globalOffset = 0;
+    //全局变量表
+    ArrayList<GlobalDef> globals;
+    //全局常量编号
+    int globalNo = 0;
     int argumentOffset = 0;
     int localOffset = 0;
     int funcOffset = 1;
@@ -63,14 +65,15 @@ public class Analyser {
         this.tokenizer = tokenizer;
         this.instructions = new ArrayList<>();
         this.startInstructions = new ArrayList<>();
-        this.Globals = new ArrayList<>();
+        this.globals = new ArrayList<>();
         this.index.push(0);
     }
 
     public void analyse(String fileName) throws CompileError, IOException {
         analyseProgram();
-        for (String global : Globals) {
-            System.out.println(global);
+        //debug
+        for (GlobalDef global : globals) {
+            System.out.println(global.toString());
         }
         System.out.println();
         for (Instruction instruction : instructions) {
@@ -80,7 +83,7 @@ public class Analyser {
         for (Instruction startInstruction : startInstructions) {
             System.out.println(startInstruction.toString());
         }
-        WriteFile.writeFile(fileName, Globals, instructions, startInstructions);
+        WriteFile.outFile(fileName, globals, instructions, startInstructions);
     }
 
     /**
@@ -166,18 +169,18 @@ public class Analyser {
      * @throws AnalyzeError 如果重复定义了则抛异常
      */
     private Symbol addSymbol(String name, boolean isConstant, boolean isInitialized, SymbolType symbolType, StorageType storageType, Pos curPos) throws AnalyzeError {
-        Integer addr = this.hashMap.get(name);
+        Integer addr = this.hashTable.get(name);
         if (addr != null && addr >= this.index.peek()) {
             throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
         } else {
             if (addr != null) {
                 switch (storageType) {
                     case global:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, globalOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, globalNo++));
                         if (isConstant)
-                            Globals.add("1");
+                            globals.add(new GlobalDef(1));
                         else
-                            Globals.add("0");
+                            globals.add(new GlobalDef(0));
                         break;
                     case argument:
                         this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, argumentOffset++));
@@ -190,11 +193,11 @@ public class Analyser {
             } else {
                 switch (storageType) {
                     case global:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, globalOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, globalNo++));
                         if (isConstant)
-                            Globals.add("1");
+                            globals.add(new GlobalDef(1));
                         else
-                            Globals.add("0");
+                            globals.add(new GlobalDef(0));
                         break;
                     case argument:
                         this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, argumentOffset++));
@@ -205,21 +208,21 @@ public class Analyser {
                 }
                 System.out.println("add:" + symbolTable.peek().getName());
             }
-            this.hashMap.put(name, symbolTable.size() - 1);
+            this.hashTable.put(name, symbolTable.size() - 1);
         }
         return this.symbolTable.peek();
     }
 
     private Symbol addFuncSymbol(String name, Pos curPos) throws AnalyzeError {
-        Integer location = this.hashMap.get(name);
+        Integer location = this.hashTable.get(name);
         if (location != null && location >= this.index.peek()) {
             throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
         } else {
-            Symbol symbol = new Symbol(name, true, StorageType.global, globalOffset++, funcOffset++);
+            Symbol symbol = new Symbol(name, true, StorageType.global, globalNo++, funcOffset++);
             this.symbolTable.push(symbol);
-            this.hashMap.put(name, symbolTable.size() - 1);
+            this.hashTable.put(name, symbolTable.size() - 1);
             this.index.push(symbolTable.size());
-            Globals.add(name);
+            globals.add(new GlobalDef(1,name));
             System.out.println("add:" + symbolTable.peek().getName());
             return symbol;
         }
@@ -231,7 +234,7 @@ public class Analyser {
     }
 
     private void changeInitialized(String name, Pos curPos) throws AnalyzeError {
-        Symbol symbol = symbolTable.get(hashMap.get(name));
+        Symbol symbol = symbolTable.get(hashTable.get(name));
         if (symbol.isConstant())
             throw new AnalyzeError(ErrorCode.AssignToConstant, curPos);
         else {
@@ -245,10 +248,10 @@ public class Analyser {
         for (int i = symbolTable.size() - 1; i >= endIndex; i--) {
             Symbol tmpSymbol = symbolTable.pop();
             if (tmpSymbol.getChain() == -1) {
-                hashMap.remove(tmpSymbol.getName());
+                hashTable.remove(tmpSymbol.getName());
                 System.out.println();
             } else {
-                hashMap.put(tmpSymbol.getName(), tmpSymbol.getChain());
+                hashTable.put(tmpSymbol.getName(), tmpSymbol.getChain());
             }
         }
 //        Symbol topSymbol = this.symbolTable.peek();
@@ -262,8 +265,8 @@ public class Analyser {
     }
 
     private void analyseProgram() throws CompileError {
-        Globals.add("_start");
-        startInstructions.add(new FunctionInstruction(Operation.func, 0, 0, 0, globalOffset++));
+        globals.add(new GlobalDef(1,"_start"));
+        startInstructions.add(new FunctionInstruction(Operation.func, 0, 0, 0, globalNo++));
         while (check(TokenType.FN_KW) || check(TokenType.LET_KW) || check(TokenType.CONST_KW)) {
             if (check(TokenType.FN_KW))
                 analyseFunction();
@@ -271,10 +274,10 @@ public class Analyser {
                 analyseDeclStmt(StorageType.global);
         }
         Token eof = expect(TokenType.EOF);
-        if (this.hashMap.get("main") == null)
+        if (this.hashTable.get("main") == null)
             throw new AnalyzeError(ErrorCode.NeedMainFunction, eof.getStartPos());
         startInstructions.add(new Instruction(Operation.stackalloc, 0));
-        startInstructions.add(new Instruction(Operation.call, this.symbolTable.get(this.hashMap.get("main")).getFuncOffset()));
+        startInstructions.add(new Instruction(Operation.call, this.symbolTable.get(this.hashTable.get("main")).getFuncOffset()));
     }
 
     //need implement
@@ -425,7 +428,7 @@ public class Analyser {
         else
             instructions.add(new Instruction(Operation.loca, symbol.getOffset()));
 
-        OPGElement element = analyseExprOPG(isGlobal);
+        OPGElement element = analyseOPGExpr(isGlobal);
         if (type != element.getType())
             throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
         expect(TokenType.SEMICOLON);
@@ -450,7 +453,7 @@ public class Analyser {
             else
                 instructions.add(new Instruction(Operation.loca, symbol.getOffset()));
 
-            OPGElement element = analyseExprOPG(isGlobal);
+            OPGElement element = analyseOPGExpr(isGlobal);
             if (type != element.getType())
                 throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
             changeInitialized(nameToken.getValueString(), nameToken.getStartPos());
@@ -468,7 +471,7 @@ public class Analyser {
         boolean haveElse = false;
         ArrayList<Integer> brToEnds = new ArrayList<>();
         expect(TokenType.IF_KW);
-        OPGElement element = analyseExprOPG(false);
+        OPGElement element = analyseOPGExpr(false);
         if (element.getType() == SymbolType.VOID)
             throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
         instructions.add(new Instruction(Operation.brtrue, 1));
@@ -479,11 +482,11 @@ public class Analyser {
         haveBreakOrContinue = b[1];
         brToEnds.add(instructions.size());
         instructions.add(new Instruction(Operation.br));
-        instructions.get(brLoc).setParam1(instructions.size() - brLoc - 1);
+        instructions.get(brLoc).setX(instructions.size() - brLoc - 1);
         if (check(TokenType.ELSE_KW)) {
             while (nextIf(TokenType.ELSE_KW) != null) {
                 if (nextIf(TokenType.IF_KW) != null) {
-                    element = analyseExprOPG(false);
+                    element = analyseOPGExpr(false);
                     if (element.getType() == SymbolType.VOID)
                         throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
                     instructions.add(new Instruction(Operation.brtrue, 1));
@@ -494,7 +497,7 @@ public class Analyser {
                     haveBreakOrContinue &= b[1];
                     brToEnds.add(instructions.size());
                     instructions.add(new Instruction(Operation.br));
-                    instructions.get(brLoc).setParam1(instructions.size() - brLoc - 1);
+                    instructions.get(brLoc).setX(instructions.size() - brLoc - 1);
                 } else {
                     b = analyseBlockStmt(false, insideWhile, returnType, loopLoc, breakList);
                     haveReturn &= b[0];
@@ -509,7 +512,7 @@ public class Analyser {
             haveBreakOrContinue = false;
         }
         for (Integer brToEnd : brToEnds) {
-            instructions.get(brToEnd).setParam1(instructions.size() - brToEnd - 1);
+            instructions.get(brToEnd).setX(instructions.size() - brToEnd - 1);
         }
         return new boolean[]{haveReturn, haveBreakOrContinue};
     }
@@ -518,16 +521,16 @@ public class Analyser {
         expect(TokenType.WHILE_KW);
         ArrayList<Integer> breakList = new ArrayList<>();
         int loopLoc = instructions.size() - 1;
-        analyseExprOPG(false);
+        analyseOPGExpr(false);
         instructions.add(new Instruction(Operation.brtrue, 1));
         int brLoc = instructions.size();
         instructions.add(new Instruction(Operation.br));
         boolean haveBreakOrContinue = analyseBlockStmt(false, true, returnType, loopLoc, breakList)[1];
         if (!haveBreakOrContinue)
             instructions.add(new Instruction(Operation.br, loopLoc - instructions.size()));
-        instructions.get(brLoc).setParam1(instructions.size() - brLoc - 1);
+        instructions.get(brLoc).setX(instructions.size() - brLoc - 1);
         for (Integer breakNum : breakList) {
-            instructions.get(breakNum).setParam1(instructions.size() - breakNum - 1);
+            instructions.get(breakNum).setX(instructions.size() - breakNum - 1);
         }
     }
 
@@ -551,7 +554,7 @@ public class Analyser {
         SymbolType type = SymbolType.VOID;
         if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) ||
                 check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN)) {
-            OPGElement element = analyseExprOPG(false);
+            OPGElement element = analyseOPGExpr(false);
             type = element.getType();
         }
         expect(TokenType.SEMICOLON);
@@ -563,14 +566,14 @@ public class Analyser {
     }
 
     private void analyseExprStmt() throws CompileError {
-        OPGElement element = analyseExprOPG(false);
+        OPGElement element = analyseOPGExpr(false);
         expect(TokenType.SEMICOLON);
         if (element.getType() != SymbolType.VOID)
             instructions.add(new Instruction(Operation.pop));
     }
 
     //expr->
-    private OPGElement analyseExprOPG(boolean isGlobal) throws CompileError {
+    private OPGElement analyseOPGExpr(boolean isGlobal) throws CompileError {
         Stack<TokenType> symbolStack = new Stack<>();
         Stack<OPGElement> exprStack = new Stack<>();
         //因为stack是TokenType类型的，因此用EOF代替OPG的#
@@ -579,14 +582,11 @@ public class Analyser {
             exprStack.push(analyseOtherExpr(isGlobal));
         }
         while (!symbolStack.empty()) {
-//            if (check(TokenType.PLUS) || check(TokenType.MINUS) || check(TokenType.MUL) || check(TokenType.DIV) ||
-//                    check(TokenType.EQ) || check(TokenType.NEQ) || check(TokenType.LT) || check(TokenType.GT) ||
-//                    check(TokenType.GE) || check(TokenType.LE) || check(TokenType.AS_KW)) {
             TokenType nextType = peek().getTokenType();
             int x = terminals.indexOf(symbolStack.peek());
             int y = terminals.indexOf(nextType);
             if (x == -1 && y == -1) break;
-            else if (x == -1 || y != -1 && matrix[x][y] == 1) {
+            else if (x == -1 || y != -1 && OpgMatrix.matrix[x][y] == 1) {
                 symbolStack.push(nextType);
                 next();
                 if (nextType == TokenType.AS_KW) {
@@ -595,7 +595,7 @@ public class Analyser {
                 } else
                     exprStack.push(analyseOtherExpr(isGlobal));
 
-            } else if (y == -1 || matrix[x][y] == 2) {
+            } else if (y == -1 ||OpgMatrix.matrix[x][y] == 2) {
                 reduction(symbolStack, exprStack, isGlobal);
             }
 //            }
@@ -739,32 +739,42 @@ public class Analyser {
     }
 
     private OPGElement analyseOtherExpr(boolean isGlobal) throws CompileError {
+        ArrayList<Instruction> changedInstruction=isGlobal?startInstructions:instructions;
         Token token;
-        ArrayList<Instruction> chosenInstruction;
+        /*
         if (isGlobal)
-            chosenInstruction = startInstructions;
+            changedInstruction = startInstructions;
         else
-            chosenInstruction = instructions;
-        if (check(TokenType.UINT_LITERAL)) {
+            changedInstruction = instructions;*/
+        //字面量表达式
+        //UINT DOUBLE语义为字面量的值
+        if (check(TokenType.UINT_LITERAL))
+        {
             token = expect(TokenType.UINT_LITERAL);
-            chosenInstruction.add(new Instruction(Operation.push, token.getValue()));
+            changedInstruction.add(new Instruction(Operation.push, token.getValue()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
-        } else if (check(TokenType.DOUBLE_LITERAL)) {
+        }
+        else if (check(TokenType.DOUBLE_LITERAL))
+        {
             token = expect(TokenType.DOUBLE_LITERAL);
-            chosenInstruction.add(new Instruction(Operation.push, Double.doubleToRawLongBits((double) token.getValue())));
+            changedInstruction.add(new Instruction(Operation.push, Double.doubleToRawLongBits((double) token.getValue())));
             return new OPGElement(SymbolType.DOUBLE, token.getStartPos());
-        } else if (check(TokenType.STRING_LITERAL)) {
+        }
+        //字符串语义为对应全局常量的编号
+        else if (check(TokenType.STRING_LITERAL)) {
             token = expect(TokenType.STRING_LITERAL);
-            chosenInstruction.add(new Instruction(Operation.push, (long) globalOffset++));
-            Globals.add(token.getValueString());
+            changedInstruction.add(new Instruction(Operation.push, (long) globalNo++));
+            globals.add(new GlobalDef(1,token.getValueString()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
-        } else if (check(TokenType.CHAR_LITERAL)) {
+        }
+        else if (check(TokenType.CHAR_LITERAL)) {
             token = expect(TokenType.CHAR_LITERAL);
-            chosenInstruction.add(new Instruction(Operation.push, (long) (char) token.getValue()));
+            changedInstruction.add(new Instruction(Operation.push, (long) (char) token.getValue()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
-        } else if (check(TokenType.IDENT)) {
+        }
+        else if (check(TokenType.IDENT)) {
             token = expect(TokenType.IDENT);
-            Integer currentIndex = this.hashMap.get(token.getValueString());
+            Integer currentIndex = this.hashTable.get(token.getValueString());
             Symbol symbol = null;
             if (currentIndex != null) {
                 symbol = this.symbolTable.get(currentIndex);
@@ -785,7 +795,7 @@ public class Analyser {
                         break;
                 }
                 Token assign = next();
-                OPGElement opgElement = analyseExprOPG(false);
+                OPGElement opgElement = analyseOPGExpr(false);
                 changeInitialized(token.getValueString(), token.getStartPos());
                 if (opgElement.getType() != symbol.getSymbolType())
                     throw new AnalyzeError(ErrorCode.InvalidAssignment, opgElement.getStartPos());
@@ -824,16 +834,12 @@ public class Analyser {
                             funcReturnType = SymbolType.VOID;
                             params = new ArrayList<>();
                             break;
-//                        case "main":
-//                            funcReturnType = SymbolType.VOID;
-//                            params = new ArrayList<>();
-//                            haveMain = true;
-//                            break;
+
                         default:
                             throw new AnalyzeError(ErrorCode.NotDeclared, token.getStartPos());
                     }
-                    Globals.add(token.getValueString());
-                    callnameOffset = globalOffset++;
+                    globals.add(new GlobalDef(1,token.getValueString()));
+                    callnameOffset = globalNo++;
                 } else {
                     funcReturnType = symbol.getSymbolType();
                     params = symbol.getParams();
@@ -844,31 +850,31 @@ public class Analyser {
                     stackSize = 0;
                 else
                     stackSize = 1;
-                chosenInstruction.add(new Instruction(Operation.stackalloc, stackSize));
+                changedInstruction.add(new Instruction(Operation.stackalloc, stackSize));
                 int paramsSize = params.size();
                 int i = 0;
                 if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) || check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN)) {
-                    OPGElement element = analyseExprOPG(isGlobal);
+                    OPGElement element = analyseOPGExpr(isGlobal);
                     if (i + 1 > paramsSize || element.getType() != params.get(i++))
                         throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
                     while (nextIf(TokenType.COMMA) != null) {
-                        element = analyseExprOPG(isGlobal);
+                        element = analyseOPGExpr(isGlobal);
                         if (i + 1 > paramsSize || element.getType() != params.get(i++))
                             throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
                     }
                 }
                 expect(TokenType.R_PAREN);
                 if (symbol == null)
-                    chosenInstruction.add(new Instruction(Operation.callname, callnameOffset));
+                    changedInstruction.add(new Instruction(Operation.callname, callnameOffset));
                 else
-                    chosenInstruction.add(new Instruction(Operation.call, symbol.getFuncOffset()));
+                    changedInstruction.add(new Instruction(Operation.call, symbol.getFuncOffset()));
                 return new OPGElement(funcReturnType, token.getStartPos());
             } else {
                 if (symbol == null)
                     throw new AnalyzeError(ErrorCode.NotDeclared, token.getStartPos());
                 switch (symbol.getStorageType()) {
                     case global:
-                        chosenInstruction.add(new Instruction(Operation.globa, symbol.getOffset()));
+                        changedInstruction.add(new Instruction(Operation.globa, symbol.getOffset()));
                         break;
                     case argument:
                         instructions.add(new Instruction(Operation.arga, symbol.getOffset()));
@@ -877,14 +883,14 @@ public class Analyser {
                         instructions.add(new Instruction(Operation.loca, symbol.getOffset()));
                         break;
                 }
-                chosenInstruction.add(new Instruction(Operation.load64));
+                changedInstruction.add(new Instruction(Operation.load64));
                 return new OPGElement(symbol.getSymbolType(), token.getStartPos());
             }
         } else if (check(TokenType.MINUS)) {
             return analyseNegateExpr(isGlobal);
         } else if (check(TokenType.L_PAREN)) {
             expect(TokenType.L_PAREN);
-            OPGElement element = analyseExprOPG(isGlobal);
+            OPGElement element = analyseOPGExpr(isGlobal);
             expect(TokenType.R_PAREN);
             return element;
         } else
