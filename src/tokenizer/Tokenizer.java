@@ -4,6 +4,9 @@ import error.ErrorCode;
 import error.TokenizeError;
 import util.Pos;
 
+import java.util.HashMap;
+import java.util.regex.Pattern;
+
 public class Tokenizer {
     private StringIter it;
 
@@ -192,6 +195,7 @@ public class Tokenizer {
         return new Token(TokenType.STRING_LITERAL, tmpToken.toString(), startPos, it.currentPos());
     }
 
+    /*
     private Token lexIdentOrKeyword() {
         Pos startPos = it.currentPos();
         StringBuilder tmpToken = new StringBuilder();
@@ -244,8 +248,38 @@ public class Tokenizer {
                 tmpType = TokenType.IDENT;
         }
         return new Token(tmpType, readyToken, startPos, it.currentPos());
+    }*/
+    public final static HashMap<String,TokenType> keywordmap=new HashMap(){{
+        put("fn", TokenType.FN_KW);
+        put("let", TokenType.LET_KW);
+        put("const", TokenType.CONST_KW);
+        put("as", TokenType.AS_KW);
+        put("while", TokenType.WHILE_KW);
+        put("if", TokenType.IF_KW);
+        put("else", TokenType.ELSE_KW);
+        put("return", TokenType.RETURN_KW);
+        put("break",TokenType.BREAK_KW);
+        put("continue",TokenType.CONTINUE_KW);
+        put("int",TokenType.INT_TY);
+        put("void",TokenType.VOID_TY);
+        put("double",TokenType.DOUBLE_TY);
+    }};
+    private Token lexIdentOrKeyword() throws TokenizeError {
+        String token = "";
+        token+=it.nextChar();
+        Pos startPos=it.currentPos();
+        while(Character.isDigit(it.peekChar())||Character.isAlphabetic(it.peekChar())){
+            token+=it.nextChar();
+        }
+        Pos endPos=it.currentPos();
+        for(String key:keywordmap.keySet()){
+            if(token.equals(key)){
+                return new Token(keywordmap.get(key), token, startPos, endPos);
+            }
+        }
+        return new Token(TokenType.IDENT, token, startPos, endPos);
     }
-
+    /*
     private Token lexUIntOrDouble() throws TokenizeError {
         Pos startPos = it.currentPos();
         StringBuilder tmpToken = new StringBuilder();
@@ -273,6 +307,21 @@ public class Tokenizer {
             } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
         }
         return new Token(TokenType.UINT_LITERAL, Long.valueOf(tmpToken.toString()), startPos, it.currentPos());
+    }*/
+    private Token lexUIntOrDouble() throws TokenizeError {
+
+        String token = "" ;
+        while (Character.isDigit(it.peekChar()) || it.peekChar()=='.' || it.peekChar() == 'e' || it.peekChar() == 'E' || it.peekChar() == '+' || it.peekChar() == '-') {
+            token += it.nextChar();
+        }
+        String doubleLiteral = "[0-9]+.[0-9]+([eE][-+]?[0-9]+)?";
+        String uintLiteral = "[0-9]+";
+        if(Pattern.matches(uintLiteral, token))
+            return new Token(TokenType.UINT_LITERAL, Integer.parseInt(token), it.previousPos(), it.currentPos());
+        else if(Pattern.matches(doubleLiteral, token))
+            return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(token), it.previousPos(), it.currentPos());
+        else
+            throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
     }
 
     private void skipSpaceCharacters() {
