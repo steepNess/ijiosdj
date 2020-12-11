@@ -147,7 +147,7 @@ public class Tokenizer {
             } else value = it.nextChar();
             if (it.peekChar() == '\'') {
                 it.nextChar();
-                return new Token(TokenType.CHAR, value, startPos, it.currentPos());
+                return new Token(TokenType.CHAR_LITERAL, value, startPos, it.currentPos());
             } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
         }
         throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
@@ -189,7 +189,7 @@ public class Tokenizer {
             throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
         }
         it.nextChar();
-        return new Token(TokenType.STRING, tmpToken.toString(), startPos, it.currentPos());
+        return new Token(TokenType.STRING_LITERAL, tmpToken.toString(), startPos, it.currentPos());
     }
 
     private Token lexIdentOrKeyword() {
@@ -266,13 +266,13 @@ public class Tokenizer {
                         do {
                             tmpToken.append(it.nextChar());
                         } while (Character.isDigit(it.peekChar()));
-                        return new Token(TokenType.DOUBLE, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
+                        return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
                     } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
                 } else
-                    return new Token(TokenType.DOUBLE, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
+                    return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
             } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
         }
-        return new Token(TokenType.UINT, Long.valueOf(tmpToken.toString()), startPos, it.currentPos());
+        return new Token(TokenType.UINT_LITERAL, Long.valueOf(tmpToken.toString()), startPos, it.currentPos());
     }
 
     private void skipSpaceCharacters() {

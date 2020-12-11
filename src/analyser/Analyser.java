@@ -340,7 +340,7 @@ public class Analyser {
         expect(TokenType.L_BRACE);
         if (!isFunction)
             addBlock();
-        while (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT) || check(TokenType.DOUBLE) || check(TokenType.STRING) || check(TokenType.CHAR) || check(TokenType.L_PAREN) || check(TokenType.LET_KW) ||
+        while (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) || check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN) || check(TokenType.LET_KW) ||
                 check(TokenType.CONST_KW) || check(TokenType.IF_KW) || check(TokenType.WHILE_KW) || check(TokenType.BREAK_KW) || check(TokenType.CONTINUE_KW) || check(TokenType.RETURN_KW) || check(TokenType.SEMICOLON) || check(TokenType.L_BRACE)) {
             if (returnSize == 0 && haveReturn)
 //                throw new AnalyzeError(ErrorCode.unreachableStatement, peek().getStartPos());
@@ -549,8 +549,8 @@ public class Analyser {
         if (returnType != SymbolType.VOID)
             instructions.add(new Instruction(Operation.arga, 0));
         SymbolType type = SymbolType.VOID;
-        if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT) || check(TokenType.DOUBLE) ||
-                check(TokenType.STRING) || check(TokenType.CHAR) || check(TokenType.L_PAREN)) {
+        if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) ||
+                check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN)) {
             OPGElement element = analyseExprOPG(false);
             type = element.getType();
         }
@@ -745,21 +745,21 @@ public class Analyser {
             chosenInstruction = startInstructions;
         else
             chosenInstruction = instructions;
-        if (check(TokenType.UINT)) {
-            token = expect(TokenType.UINT);
+        if (check(TokenType.UINT_LITERAL)) {
+            token = expect(TokenType.UINT_LITERAL);
             chosenInstruction.add(new Instruction(Operation.push, token.getValue()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
-        } else if (check(TokenType.DOUBLE)) {
-            token = expect(TokenType.DOUBLE);
+        } else if (check(TokenType.DOUBLE_LITERAL)) {
+            token = expect(TokenType.DOUBLE_LITERAL);
             chosenInstruction.add(new Instruction(Operation.push, Double.doubleToRawLongBits((double) token.getValue())));
             return new OPGElement(SymbolType.DOUBLE, token.getStartPos());
-        } else if (check(TokenType.STRING)) {
-            token = expect(TokenType.STRING);
+        } else if (check(TokenType.STRING_LITERAL)) {
+            token = expect(TokenType.STRING_LITERAL);
             chosenInstruction.add(new Instruction(Operation.push, (long) globalOffset++));
             Globals.add(token.getValueString());
             return new OPGElement(SymbolType.INT, token.getStartPos());
-        } else if (check(TokenType.CHAR)) {
-            token = expect(TokenType.CHAR);
+        } else if (check(TokenType.CHAR_LITERAL)) {
+            token = expect(TokenType.CHAR_LITERAL);
             chosenInstruction.add(new Instruction(Operation.push, (long) (char) token.getValue()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
         } else if (check(TokenType.IDENT)) {
@@ -847,7 +847,7 @@ public class Analyser {
                 chosenInstruction.add(new Instruction(Operation.stackalloc, stackSize));
                 int paramsSize = params.size();
                 int i = 0;
-                if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT) || check(TokenType.DOUBLE) || check(TokenType.STRING) || check(TokenType.CHAR) || check(TokenType.L_PAREN)) {
+                if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) || check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN)) {
                     OPGElement element = analyseExprOPG(isGlobal);
                     if (i + 1 > paramsSize || element.getType() != params.get(i++))
                         throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
@@ -888,7 +888,7 @@ public class Analyser {
             expect(TokenType.R_PAREN);
             return element;
         } else
-            throw new ExpectedTokenError(Arrays.asList(TokenType.UINT, TokenType.DOUBLE, TokenType.STRING, TokenType.CHAR, TokenType.IDENT, TokenType.MINUS), peek());
+            throw new ExpectedTokenError(Arrays.asList(TokenType.UINT_LITERAL, TokenType.DOUBLE_LITERAL, TokenType.STRING_LITERAL, TokenType.CHAR_LITERAL, TokenType.IDENT, TokenType.MINUS), peek());
 //        }else if (check(TokenType.MINUS)){
 //            analyseNegateExpr();
 //        } else if (check(TokenType.L_PAREN)) {

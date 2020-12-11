@@ -1,6 +1,7 @@
 package tokenizer;
 
 public enum  TokenType {
+    //关键字
     FN_KW,
     LET_KW,
     CONST_KW,
@@ -9,16 +10,22 @@ public enum  TokenType {
     IF_KW,
     ELSE_KW,
     RETURN_KW,
+    //扩展
     BREAK_KW,
     CONTINUE_KW,
     INT_TY,
     VOID_TY,
     DOUBLE_TY,
-    UINT,
-    STRING,
-    DOUBLE,
-    CHAR,
+
+    //字面量
+    UINT_LITERAL,
+    STRING_LITERAL,
+    //扩展
+    DOUBLE_LITERAL,
+    CHAR_LITERAL,
+    //标识符
     IDENT,
+    //运算符
     PLUS,
     MINUS,
     MUL,
@@ -38,6 +45,7 @@ public enum  TokenType {
     COMMA,
     COLON,
     SEMICOLON,
+    //扩展：注释
     COMMENT,
     EOF;
 }
