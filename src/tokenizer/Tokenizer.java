@@ -158,41 +158,43 @@ public class Tokenizer {
 
     private Token lexString() throws TokenizeError {
         Pos startPos = it.currentPos();
-        StringBuilder tmpToken = new StringBuilder();
+        StringBuilder token = new StringBuilder();
         it.nextChar();
         char peek;
-        while (!it.isEOF() && (peek = it.peekChar()) != '"') {
+        while (!it.isEOF() && (peek = it.peekChar()) != '"')
+        {
             if (peek == '\\') {
                 it.nextChar();
                 switch (it.nextChar()) {
                     case '\\':
-                        tmpToken.append('\\');
+                        token.append('\\');
                         break;
                     case '"':
-                        tmpToken.append('"');
+                        token.append('"');
                         break;
                     case '\'':
-                        tmpToken.append('\'');
+                        token.append('\'');
                         break;
                     case 'n':
-                        tmpToken.append('\n');
+                        token.append('\n');
                         break;
                     case 'r':
-                        tmpToken.append('\r');
+                        token.append('\r');
                         break;
                     case 't':
-                        tmpToken.append('\t');
+                        token.append('\t');
                         break;
                     default:
                         throw new TokenizeError(ErrorCode.IllegalEscapeSequence, it.previousPos());
                 }
-            } else tmpToken.append(it.nextChar());
+            }
+            else token.append(it.nextChar());
         }
         if (it.isEOF()) {
             throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
         }
         it.nextChar();
-        return new Token(TokenType.STRING_LITERAL, tmpToken.toString(), startPos, it.currentPos());
+        return new Token(TokenType.STRING_LITERAL, token.toString(), startPos, it.currentPos());
     }
 
     /*
@@ -317,7 +319,7 @@ public class Tokenizer {
         String doubleLiteral = "[0-9]+.[0-9]+([eE][-+]?[0-9]+)?";
         String uintLiteral = "[0-9]+";
         if(Pattern.matches(uintLiteral, token))
-            return new Token(TokenType.UINT_LITERAL, Integer.parseInt(token), it.previousPos(), it.currentPos());
+            return new Token(TokenType.UINT_LITERAL, Long.valueOf(token), it.previousPos(), it.currentPos());
         else if(Pattern.matches(doubleLiteral, token))
             return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(token), it.previousPos(), it.currentPos());
         else
