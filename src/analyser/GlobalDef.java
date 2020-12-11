@@ -15,7 +15,7 @@ public class GlobalDef {
         //global.value.count 4 slot
         this.array_count=intToByte(8);
         //global.value.items 8 slot
-        this.array_count=longToByte(0L);
+        this.array_items=longToByte(0L);
     }
     public static byte[] longToByte(long val) {
         byte[] b = new byte[8];

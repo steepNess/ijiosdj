@@ -65,7 +65,7 @@ public class Analyser {
         this.tokenizer = tokenizer;
         this.instructions = new ArrayList<>();
         this.startInstructions = new ArrayList<>();
-        this.globals = new ArrayList<>();
+        this.globals = new ArrayList<GlobalDef>();
         this.index.push(0);
     }
 
@@ -73,7 +73,7 @@ public class Analyser {
         analyseProgram();
         //debug
         for (GlobalDef global : globals) {
-            System.out.println(global.toString());
+            System.out.println(global.array_items);
         }
         System.out.println();
         for (Instruction instruction : instructions) {
@@ -772,6 +772,7 @@ public class Analyser {
             changedInstruction.add(new Instruction(Operation.push, (long) (char) token.getValue()));
             return new OPGElement(SymbolType.INT, token.getStartPos());
         }
+        //标识符表达式
         else if (check(TokenType.IDENT)) {
             token = expect(TokenType.IDENT);
             Integer currentIndex = this.hashTable.get(token.getValueString());
