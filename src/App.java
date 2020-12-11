@@ -13,12 +13,14 @@ import java.util.Scanner;
 
 public class App {
     public static void main(String[] args) throws Exception{
-        //InputStream input = new FileInputStream("input.txt");
-        Scanner scanner=new Scanner(new File(args[0]));
+        InputStream input = new FileInputStream("src/input.txt");
+        //InputStream input = new FileInputStream(args[0]);
+        Scanner scanner=new Scanner(input);
         StringIter it=new StringIter(scanner);
         Tokenizer tokenizer=new Tokenizer(it);
         Analyser analyser=new Analyser(tokenizer);
-        //DataOutputStream output = new DataOutputStream(new FileOutputStream(new File("output.txt")));
-        analyser.analyse(args[1]);
+        String outputFile="src/output.txt";
+        //String outputFile=args[1];
+        analyser.analyse(outputFile);
     }
 }

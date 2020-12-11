@@ -1,3 +1,0 @@
-fn main()->void{
-    let i:int = (1<2) as int;
-}

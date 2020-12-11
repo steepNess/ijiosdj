@@ -270,7 +270,7 @@ public class Tokenizer {
         String token = "";
         token+=it.nextChar();
         Pos startPos=it.currentPos();
-        while(Character.isDigit(it.peekChar())||Character.isAlphabetic(it.peekChar())){
+        while(Character.isLetterOrDigit(it.peekChar()) || it.peekChar() == '_'){
             token+=it.nextChar();
         }
         Pos endPos=it.currentPos();
