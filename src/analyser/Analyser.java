@@ -179,6 +179,16 @@ public class Analyser {
         {
             throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
         }
+        else if(type.equals(Type.FUNCTION))
+        {
+            Symbol symbol = new Symbol(name, true, Scope.global, globalNo++, funcNo++);
+            this.symbolTable.push(symbol);
+            this.hashTable.put(name, symbolTable.size() - 1);
+            this.subProgramIndex.push(symbolTable.size());
+            globals.add(new GlobalDef(1,name));
+            System.out.println("add:" + symbolTable.peek().getName());
+            return symbol;
+        }
         else
         {   //标识符重名，冲突记录用链域相连（冲突记录在符号表中的位置）
             if (symTbIndex != null)
@@ -309,7 +319,8 @@ public class Analyser {
         expect(TokenType.FN_KW);
         localNo = 0;
         Token IDENT = expect(TokenType.IDENT);
-        Symbol funcSymbol = addFuncSymbol(IDENT.getValueString(), IDENT.getStartPos());
+        Symbol funcSymbol=addSymbol(IDENT.getValueString(),false,false,Type.FUNCTION,Scope.global,IDENT.getStartPos());
+        //Symbol funcSymbol = addFuncSymbol(IDENT.getValueString(), IDENT.getStartPos());
         FunctionInstruction functionInstruction = new FunctionInstruction(Operation.func);
         instructions.add(functionInstruction);
         expect(TokenType.L_PAREN);

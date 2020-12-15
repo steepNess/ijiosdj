@@ -5,4 +5,5 @@ public enum Type {
     VOID,
     DOUBLE,
     BOOL,
+    FUNCTION
 }
