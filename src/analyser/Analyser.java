@@ -272,7 +272,7 @@ public class Analyser {
             //从符号表中移除
             Symbol symbol = symbolTable.pop();
             //标识符无冲突 散列表中移除
-            if (symbol.getConflictChain() == -1)
+            if (symbol.getConflictChain() == null)
             {
                 hashTable.remove(symbol.getName());
             }

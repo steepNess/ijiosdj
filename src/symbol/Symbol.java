@@ -12,7 +12,7 @@ public class Symbol {
     private Scope scope;
     private int offset;
     private int funcOffset;
-    private int conflictChain = -1;
+    private Integer conflictChain;
 
     public Symbol(String name, boolean isFunction, Scope scope, int offset, int funcOffset) {
         this.name = name;
@@ -98,11 +98,11 @@ public class Symbol {
         this.type = type;
     }
 
-    public int getConflictChain() {
+    public Integer getConflictChain() {
         return conflictChain;
     }
 
-    public void setConflictChain(int conflictChain) {
+    public void setConflictChain(Integer conflictChain) {
         this.conflictChain = conflictChain;
     }
 
