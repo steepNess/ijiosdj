@@ -4,9 +4,9 @@ import error.*;
 import instruction.FunctionInstruction;
 import instruction.Instruction;
 import instruction.Operation;
-import symbol.StorageType;
+import symbol.Scope;
 import symbol.Symbol;
-import symbol.SymbolType;
+import symbol.Type;
 import tokenizer.Token;
 import tokenizer.TokenType;
 import tokenizer.Tokenizer;
@@ -41,11 +41,11 @@ public class Analyser {
             {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
             {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};*/
 
-    //栈式符号表
+    //散列符号表的栈式实现
     Stack<Symbol> symbolTable = new Stack<>();
     //分程序索引
-    Stack<Integer> index = new Stack<>();
-    //Hash查找中间表
+    Stack<Integer> subProgramIndex = new Stack<>();
+    //散列表 key:标识符 value:标识符在符号表中的索引
     HashMap<String, Integer> hashTable = new HashMap<>();
 
     //指令集
@@ -55,18 +55,21 @@ public class Analyser {
     ArrayList<Instruction> startInstructions;
     //全局变量表
     ArrayList<GlobalDef> globals;
-    //全局常量编号
+    //全局常量+变量id
     int globalNo = 0;
-    int argumentOffset = 0;
-    int localOffset = 0;
-    int funcOffset = 1;
+    //参数变量id
+    int argNo = 0;
+    //局部变量id
+    int localNo = 0;
+    //函数id
+    int funcNo = 1;
 
     public Analyser(Tokenizer tokenizer) {
         this.tokenizer = tokenizer;
         this.instructions = new ArrayList<>();
         this.startInstructions = new ArrayList<>();
         this.globals = new ArrayList<GlobalDef>();
-        this.index.push(0);
+        this.subProgramIndex.push(0);
     }
 
     public void analyse(String fileName) throws CompileError, IOException {
@@ -168,46 +171,56 @@ public class Analyser {
      * @param curPos        当前 token 的位置（报错用）
      * @throws AnalyzeError 如果重复定义了则抛异常
      */
-    private Symbol addSymbol(String name, boolean isConstant, boolean isInitialized, SymbolType symbolType, StorageType storageType, Pos curPos) throws AnalyzeError {
-        Integer addr = this.hashTable.get(name);
-        if (addr != null && addr >= this.index.peek()) {
+    private Symbol addSymbol(String name, boolean isConstant, boolean isInitialized, Type type, Scope scope, Pos curPos) throws AnalyzeError {
+        //获取标识符在符号表中的存储单元地址
+        Integer symTbIndex = this.hashTable.get(name);
+        //同一分程序中的标识符存在非法的重复声明
+        if (symTbIndex != null && symTbIndex >= this.subProgramIndex.peek())
+        {
             throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
-        } else {
-            if (addr != null) {
-                switch (storageType) {
+        }
+        else
+        {   //标识符重名，冲突记录用链域相连（冲突记录在符号表中的位置）
+            if (symTbIndex != null)
+            {
+                switch (scope)
+                {
                     case global:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, globalNo++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, globalNo++));
                         if (isConstant)
                             globals.add(new GlobalDef(1));
                         else
                             globals.add(new GlobalDef(0));
                         break;
                     case argument:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, argumentOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, argNo++));
                         break;
                     case local:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, addr, storageType, localOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, localNo++));
                         break;
                 }
                 System.out.println("add/dup:" + symbolTable.peek().getName());
-            } else {
-                switch (storageType) {
+            }
+            else
+            {
+                switch (scope) {
                     case global:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, globalNo++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, scope, globalNo++));
                         if (isConstant)
                             globals.add(new GlobalDef(1));
                         else
                             globals.add(new GlobalDef(0));
                         break;
                     case argument:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, argumentOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, scope, argNo++));
                         break;
                     case local:
-                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, symbolType, storageType, localOffset++));
+                        this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, scope, localNo++));
                         break;
                 }
                 System.out.println("add:" + symbolTable.peek().getName());
             }
+            //散列表存放标识符在符号表中的位置，冲突则以最新记录为准
             this.hashTable.put(name, symbolTable.size() - 1);
         }
         return this.symbolTable.peek();
@@ -215,77 +228,88 @@ public class Analyser {
 
     private Symbol addFuncSymbol(String name, Pos curPos) throws AnalyzeError {
         Integer location = this.hashTable.get(name);
-        if (location != null && location >= this.index.peek()) {
+        if (location != null && location >= this.subProgramIndex.peek()) {
             throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
-        } else {
-            Symbol symbol = new Symbol(name, true, StorageType.global, globalNo++, funcOffset++);
+        }
+        else
+        {
+            Symbol symbol = new Symbol(name, true, Scope.global, globalNo++, funcNo++);
             this.symbolTable.push(symbol);
             this.hashTable.put(name, symbolTable.size() - 1);
-            this.index.push(symbolTable.size());
+            this.subProgramIndex.push(symbolTable.size());
             globals.add(new GlobalDef(1,name));
             System.out.println("add:" + symbolTable.peek().getName());
             return symbol;
         }
     }
-
+    //符号表定位 分程序索引项指向每个分程序的第一个记录项
     private void addBlock() {
-        this.index.push(this.symbolTable.size());
+        this.subProgramIndex.push(this.symbolTable.size());
         System.out.println("add block");
+    }
+
+    //符号表重定位
+    private void relocate(boolean isFunction)
+    {
+        int start = subProgramIndex.pop();
+        for (int i = symbolTable.size() - 1; i >= start; i--)
+        {
+            //从符号表中移除
+            Symbol symbol = symbolTable.pop();
+            //标识符无冲突 散列表中移除
+            if (symbol.getConflictChain() == -1)
+            {
+                hashTable.remove(symbol.getName());
+            }
+            //标识符有冲突，散列表中恢复为冲突记录在符号表的位置
+            else
+            {
+                hashTable.put(symbol.getName(), symbol.getConflictChain());
+            }
+        }
+        if (isFunction)
+            argNo = 0;
+        System.out.println("remove block");
     }
 
     private void changeInitialized(String name, Pos curPos) throws AnalyzeError {
         Symbol symbol = symbolTable.get(hashTable.get(name));
         if (symbol.isConstant())
             throw new AnalyzeError(ErrorCode.AssignToConstant, curPos);
-        else {
+        else
+        {
             if (!symbol.isInitialized())
                 symbol.setInitialized(true);
         }
     }
 
-    private void removeBlockSymbols(boolean isFunction) {
-        int endIndex = index.pop();
-        for (int i = symbolTable.size() - 1; i >= endIndex; i--) {
-            Symbol tmpSymbol = symbolTable.pop();
-            if (tmpSymbol.getChain() == -1) {
-                hashTable.remove(tmpSymbol.getName());
-                System.out.println();
-            } else {
-                hashTable.put(tmpSymbol.getName(), tmpSymbol.getChain());
-            }
-        }
-//        Symbol topSymbol = this.symbolTable.peek();
-//        if (topSymbol.getStorageType() == StorageType.local)
-//            localOffset = topSymbol.getOffset() + 1;
-//        else
-//            localOffset = 0;
-        if (isFunction)
-            argumentOffset = 0;
-        System.out.println("remove block");
-    }
-
     private void analyseProgram() throws CompileError {
         globals.add(new GlobalDef(1,"_start"));
         startInstructions.add(new FunctionInstruction(Operation.func, 0, 0, 0, globalNo++));
+        // program -> decl_stmt* function*
         while (check(TokenType.FN_KW) || check(TokenType.LET_KW) || check(TokenType.CONST_KW)) {
             if (check(TokenType.FN_KW))
                 analyseFunction();
             else
-                analyseDeclStmt(StorageType.global);
+                analyseDeclStmt(Scope.global);
         }
         Token eof = expect(TokenType.EOF);
         if (this.hashTable.get("main") == null)
-            throw new AnalyzeError(ErrorCode.NeedMainFunction, eof.getStartPos());
+            throw new AnalyzeError(ErrorCode.NoMainSymbol, eof.getStartPos());
         startInstructions.add(new Instruction(Operation.stackalloc, 0));
         startInstructions.add(new Instruction(Operation.call, this.symbolTable.get(this.hashTable.get("main")).getFuncOffset()));
     }
 
-    //need implement
+    /**
+     * 函数声明分析函数
+     * function -> 'fn' IDENT '(' function_param_list? ')' '->' ty block_stmt
+     * @throws CompileError
+     */
     private void analyseFunction() throws CompileError {
         expect(TokenType.FN_KW);
-        Token nameToken = expect(TokenType.IDENT);
-        Symbol funcSymbol = addFuncSymbol(nameToken.getValueString(), nameToken.getStartPos());
-        localOffset = 0;
+        localNo = 0;
+        Token IDENT = expect(TokenType.IDENT);
+        Symbol funcSymbol = addFuncSymbol(IDENT.getValueString(), IDENT.getStartPos());
         FunctionInstruction functionInstruction = new FunctionInstruction(Operation.func);
         instructions.add(functionInstruction);
         expect(TokenType.L_PAREN);
@@ -293,15 +317,15 @@ public class Analyser {
             analyseFunctionParamList(funcSymbol.getParams());
         expect(TokenType.R_PAREN);
         expect(TokenType.ARROW);
-        SymbolType type = analyseType();
+        Type type = analyseType();
         funcSymbol.setSymbolType(type);
-        functionInstruction.setParamCount(argumentOffset);
-        if (type == SymbolType.VOID)
-            functionInstruction.setReturnCount(0);
+        functionInstruction.setParamSlots(argNo);
+        if (type == Type.VOID)
+            functionInstruction.setRetSlots(0);
         else {
-            functionInstruction.setReturnCount(1);
+            functionInstruction.setRetSlots(1);
             int last = symbolTable.size() - 1;
-            for (int i = 0; i < argumentOffset; i++) {
+            for (int i = 0; i < argNo; i++) {
                 Symbol symbol = this.symbolTable.get(last - i);
                 symbol.setOffset(symbol.getOffset() + 1);
             }
@@ -309,33 +333,33 @@ public class Analyser {
         }
         functionInstruction.setOffset(funcSymbol.getOffset());
         boolean[] b = analyseBlockStmt(true, false, type, 0, null);
-        if (type != SymbolType.VOID && !b[0]) {
-            throw new AnalyzeError(ErrorCode.MissingReturnStatement, nameToken.getStartPos());
+        if (type != Type.VOID && !b[0]) {
+            throw new AnalyzeError(ErrorCode.MissingReturnStatement, IDENT.getStartPos());
         }
-        if (type == SymbolType.VOID && !b[0])
+        if (type == Type.VOID && !b[0])
             instructions.add(new Instruction(Operation.ret));
-        functionInstruction.setLocalCount(localOffset);
+        functionInstruction.setLocalSlots(localNo);
     }
 
-    private void analyseFunctionParamList(ArrayList<SymbolType> params) throws CompileError {
+    private void analyseFunctionParamList(ArrayList<Type> params) throws CompileError {
         do {
             analyseFunctionParam(params);
         } while (nextIf(TokenType.COMMA) != null);
     }
 
     //need implement
-    private void analyseFunctionParam(ArrayList<SymbolType> params) throws CompileError {
+    private void analyseFunctionParam(ArrayList<Type> params) throws CompileError {
         boolean isConstant = false;
         if (nextIf(TokenType.CONST_KW) != null)
             isConstant = true;
         Token nameToken = expect(TokenType.IDENT);
         expect(TokenType.COLON);
-        SymbolType type = analyseType();
-        addSymbol(nameToken.getValueString(), isConstant, true, type, StorageType.argument, nameToken.getStartPos());
+        Type type = analyseType();
+        addSymbol(nameToken.getValueString(), isConstant, true, type, Scope.argument, nameToken.getStartPos());
         params.add(type);
     }
 
-    private boolean[] analyseBlockStmt(boolean isFunction, boolean insideWhile, SymbolType returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
+    private boolean[] analyseBlockStmt(boolean isFunction, boolean insideWhile, Type returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
         boolean haveReturn = false;
         boolean haveBreakOrContinue = false;
         int returnSize = 0;
@@ -370,13 +394,13 @@ public class Analyser {
             instructions.subList(breakOrContinueSize, instructions.size()).clear();
 //        if (isFunction && !haveReturn)
 //            throw new AnalyzeError(ErrorCode.MissingReturnStatement, RBrace.getStartPos());
-        removeBlockSymbols(isFunction);
+        relocate(isFunction);
         return new boolean[]{haveReturn, haveBreakOrContinue};
     }
 
-    private boolean[] analyseStmt(boolean insideWhile, SymbolType returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
+    private boolean[] analyseStmt(boolean insideWhile, Type returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
         if (check(TokenType.CONST_KW) || check(TokenType.LET_KW))
-            analyseDeclStmt(StorageType.local);
+            analyseDeclStmt(Scope.local);
         else if (check(TokenType.IF_KW))
             return analyseIfStmt(insideWhile, returnType, loopLoc, breakList);
         else if (check(TokenType.WHILE_KW))
@@ -405,22 +429,22 @@ public class Analyser {
         return new boolean[]{false, false};
     }
 
-    private void analyseDeclStmt(StorageType storageType) throws CompileError {
+    private void analyseDeclStmt(Scope scope) throws CompileError {
         if (check(TokenType.CONST_KW))
-            analyseConstDeclStmt(storageType);
+            analyseConstDeclStmt(scope);
         else
-            analyseLetDeclStmt(storageType);
+            analyseLetDeclStmt(scope);
     }
 
-    private void analyseConstDeclStmt(StorageType storageType) throws CompileError {
-        boolean isGlobal = storageType == StorageType.global;
+    private void analyseConstDeclStmt(Scope scope) throws CompileError {
+        boolean isGlobal = scope == Scope.global;
         expect(TokenType.CONST_KW);
         Token nameToken = expect(TokenType.IDENT);
         expect(TokenType.COLON);
-        SymbolType type = analyseType();
-        if (type == SymbolType.VOID)
+        Type type = analyseType();
+        if (type == Type.VOID)
             throw new AnalyzeError(ErrorCode.InvalidDeclaration, nameToken.getStartPos());
-        Symbol symbol = addSymbol(nameToken.getValueString(), true, true, type, storageType, nameToken.getStartPos());
+        Symbol symbol = addSymbol(nameToken.getValueString(), true, true, type, scope, nameToken.getStartPos());
         expect(TokenType.ASSIGN);
 
         if (isGlobal)
@@ -438,15 +462,15 @@ public class Analyser {
             instructions.add(new Instruction(Operation.store64));
     }
 
-    private void analyseLetDeclStmt(StorageType storageType) throws CompileError {
-        boolean isGlobal = storageType == StorageType.global;
+    private void analyseLetDeclStmt(Scope scope) throws CompileError {
+        boolean isGlobal = scope == Scope.global;
         expect(TokenType.LET_KW);
         Token nameToken = expect(TokenType.IDENT);
         expect(TokenType.COLON);
-        SymbolType type = analyseType();
-        if (type == SymbolType.VOID)
+        Type type = analyseType();
+        if (type == Type.VOID)
             throw new AnalyzeError(ErrorCode.InvalidDeclaration, nameToken.getStartPos());
-        Symbol symbol = addSymbol(nameToken.getValueString(), false, false, type, storageType, nameToken.getStartPos());
+        Symbol symbol = addSymbol(nameToken.getValueString(), false, false, type, scope, nameToken.getStartPos());
         if (nextIf(TokenType.ASSIGN) != null) {
             if (isGlobal)
                 startInstructions.add(new Instruction(Operation.globa, symbol.getOffset()));
@@ -465,14 +489,14 @@ public class Analyser {
         expect(TokenType.SEMICOLON);
     }
 
-    private boolean[] analyseIfStmt(boolean insideWhile, SymbolType returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
+    private boolean[] analyseIfStmt(boolean insideWhile, Type returnType, int loopLoc, ArrayList<Integer> breakList) throws CompileError {
         boolean haveReturn;
         boolean haveBreakOrContinue;
         boolean haveElse = false;
         ArrayList<Integer> brToEnds = new ArrayList<>();
         expect(TokenType.IF_KW);
         OPGElement element = analyseOPGExpr(false);
-        if (element.getType() == SymbolType.VOID)
+        if (element.getType() == Type.VOID)
             throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
         instructions.add(new Instruction(Operation.brtrue, 1));
         instructions.add(new Instruction(Operation.br));
@@ -487,7 +511,7 @@ public class Analyser {
             while (nextIf(TokenType.ELSE_KW) != null) {
                 if (nextIf(TokenType.IF_KW) != null) {
                     element = analyseOPGExpr(false);
-                    if (element.getType() == SymbolType.VOID)
+                    if (element.getType() == Type.VOID)
                         throw new AnalyzeError(ErrorCode.InvalidType, element.getStartPos());
                     instructions.add(new Instruction(Operation.brtrue, 1));
                     instructions.add(new Instruction(Operation.br));
@@ -517,7 +541,7 @@ public class Analyser {
         return new boolean[]{haveReturn, haveBreakOrContinue};
     }
 
-    private void analyseWhileStmt(SymbolType returnType) throws CompileError {
+    private void analyseWhileStmt(Type returnType) throws CompileError {
         expect(TokenType.WHILE_KW);
         ArrayList<Integer> breakList = new ArrayList<>();
         int loopLoc = instructions.size() - 1;
@@ -547,11 +571,11 @@ public class Analyser {
         instructions.add(new Instruction(Operation.br, loopLoc - instructions.size()));
     }
 
-    private void analyseReturnStmt(SymbolType returnType) throws CompileError {
+    private void analyseReturnStmt(Type returnType) throws CompileError {
         Token expect = expect(TokenType.RETURN_KW);
-        if (returnType != SymbolType.VOID)
+        if (returnType != Type.VOID)
             instructions.add(new Instruction(Operation.arga, 0));
-        SymbolType type = SymbolType.VOID;
+        Type type = Type.VOID;
         if (check(TokenType.MINUS) || check(TokenType.IDENT) || check(TokenType.UINT_LITERAL) || check(TokenType.DOUBLE_LITERAL) ||
                 check(TokenType.STRING_LITERAL) || check(TokenType.CHAR_LITERAL) || check(TokenType.L_PAREN)) {
             OPGElement element = analyseOPGExpr(false);
@@ -560,7 +584,7 @@ public class Analyser {
         expect(TokenType.SEMICOLON);
         if (type != returnType)
             throw new AnalyzeError(ErrorCode.InvalidType, expect.getStartPos());
-        if (type != SymbolType.VOID)
+        if (type != Type.VOID)
             instructions.add(new Instruction(Operation.store64));
         instructions.add(new Instruction(Operation.ret));
     }
@@ -568,7 +592,7 @@ public class Analyser {
     private void analyseExprStmt() throws CompileError {
         OPGElement element = analyseOPGExpr(false);
         expect(TokenType.SEMICOLON);
-        if (element.getType() != SymbolType.VOID)
+        if (element.getType() != Type.VOID)
             instructions.add(new Instruction(Operation.pop));
     }
 
@@ -590,7 +614,7 @@ public class Analyser {
                 symbolStack.push(nextType);
                 next();
                 if (nextType == TokenType.AS_KW) {
-                    SymbolType type = analyseType();
+                    Type type = analyseType();
                     exprStack.push(new OPGElement(type, null));
                 } else
                     exprStack.push(analyseOtherExpr(isGlobal));
@@ -605,21 +629,21 @@ public class Analyser {
 
     private void reduction(Stack<TokenType> symbols, Stack<OPGElement> Exprs, boolean isGlobal) throws CompileError {
         if (Exprs.size() > 1) {
-            SymbolType secondType = Exprs.pop().getType();
+            Type secondType = Exprs.pop().getType();
             OPGElement first = Exprs.peek();
             TokenType type = symbols.pop();
-            SymbolType firstType = first.getType();
+            Type firstType = first.getType();
             if (TokenType.AS_KW == type) {
-                if (firstType == SymbolType.VOID || secondType == SymbolType.VOID)
+                if (firstType == Type.VOID || secondType == Type.VOID)
                     throw new AnalyzeError(ErrorCode.InvalidType, first.getStartPos());
                 else {
-                    if (firstType == SymbolType.INT && secondType == SymbolType.DOUBLE) {
+                    if (firstType == Type.INT && secondType == Type.DOUBLE) {
                         first.setType(secondType);
                         if (isGlobal)
                             startInstructions.add(new Instruction(Operation.itof));
                         else
                             instructions.add(new Instruction(Operation.itof));
-                    } else if (firstType == SymbolType.DOUBLE && secondType == SymbolType.INT) {
+                    } else if (firstType == Type.DOUBLE && secondType == Type.INT) {
                         first.setType(secondType);
                         if (isGlobal)
                             startInstructions.add(new Instruction(Operation.ftoi));
@@ -631,56 +655,56 @@ public class Analyser {
                 if (firstType == secondType) {
                     switch (type) {
                         case GT:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
                             instructions.add(new Instruction(Operation.setgt));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case LT:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
                             instructions.add(new Instruction(Operation.setlt));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case GE:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
                             instructions.add(new Instruction(Operation.setlt));
                             instructions.add(new Instruction(Operation.not));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case LE:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
                             instructions.add(new Instruction(Operation.setgt));
                             instructions.add(new Instruction(Operation.not));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case EQ:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
                             instructions.add(new Instruction(Operation.not));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case NEQ:
-                            if (firstType == SymbolType.INT)
+                            if (firstType == Type.INT)
                                 instructions.add(new Instruction(Operation.cmpi));
                             else
                                 instructions.add(new Instruction(Operation.cmpf));
-                            first.setType(SymbolType.BOOL);
+                            first.setType(Type.BOOL);
                             break;
                         case PLUS:
-                            if (firstType == SymbolType.INT) {
+                            if (firstType == Type.INT) {
                                 if (isGlobal)
                                     startInstructions.add(new Instruction(Operation.addi));
                                 else
@@ -693,7 +717,7 @@ public class Analyser {
                             }
                             break;
                         case MINUS:
-                            if (firstType == SymbolType.INT) {
+                            if (firstType == Type.INT) {
                                 if (isGlobal)
                                     startInstructions.add(new Instruction(Operation.subi));
                                 else
@@ -706,7 +730,7 @@ public class Analyser {
                             }
                             break;
                         case MUL:
-                            if (firstType == SymbolType.INT) {
+                            if (firstType == Type.INT) {
                                 if (isGlobal)
                                     startInstructions.add(new Instruction(Operation.muli));
                                 else
@@ -719,7 +743,7 @@ public class Analyser {
                             }
                             break;
                         case DIV:
-                            if (firstType == SymbolType.INT) {
+                            if (firstType == Type.INT) {
                                 if (isGlobal)
                                     startInstructions.add(new Instruction(Operation.divi));
                                 else
@@ -741,50 +765,48 @@ public class Analyser {
     private OPGElement analyseOtherExpr(boolean isGlobal) throws CompileError {
         ArrayList<Instruction> changedInstruction=isGlobal?startInstructions:instructions;
         Token token;
-        /*
-        if (isGlobal)
-            changedInstruction = startInstructions;
-        else
-            changedInstruction = instructions;*/
         //字面量表达式
         //UINT DOUBLE语义为字面量的值
         if (check(TokenType.UINT_LITERAL))
         {
             token = expect(TokenType.UINT_LITERAL);
             changedInstruction.add(new Instruction(Operation.push, token.getValue()));
-            return new OPGElement(SymbolType.INT, token.getStartPos());
+            return new OPGElement(Type.INT, token.getStartPos());
         }
         else if (check(TokenType.DOUBLE_LITERAL))
         {
             token = expect(TokenType.DOUBLE_LITERAL);
             changedInstruction.add(new Instruction(Operation.push, Double.doubleToRawLongBits((double) token.getValue())));
-            return new OPGElement(SymbolType.DOUBLE, token.getStartPos());
+            return new OPGElement(Type.DOUBLE, token.getStartPos());
         }
         //字符串语义为对应全局常量的编号
         else if (check(TokenType.STRING_LITERAL)) {
             token = expect(TokenType.STRING_LITERAL);
             changedInstruction.add(new Instruction(Operation.push, (long) globalNo++));
             globals.add(new GlobalDef(1,token.getValueString()));
-            return new OPGElement(SymbolType.INT, token.getStartPos());
+            return new OPGElement(Type.INT, token.getStartPos());
         }
         else if (check(TokenType.CHAR_LITERAL)) {
             token = expect(TokenType.CHAR_LITERAL);
             changedInstruction.add(new Instruction(Operation.push, (long) (char) token.getValue()));
-            return new OPGElement(SymbolType.INT, token.getStartPos());
+            return new OPGElement(Type.INT, token.getStartPos());
         }
-        //标识符表达式
+        //赋值表达式 l_expr -> IDENT  assign_expr -> l_expr '=' expr
+        // ident_expr -> IDENT
         else if (check(TokenType.IDENT)) {
             token = expect(TokenType.IDENT);
+            //获得标识符在符号表中的位置
             Integer currentIndex = this.hashTable.get(token.getValueString());
             Symbol symbol = null;
             if (currentIndex != null) {
                 symbol = this.symbolTable.get(currentIndex);
             }
-
-            if (check(TokenType.ASSIGN)) {
+            //赋值表达式
+            if (check(TokenType.ASSIGN))
+            {
                 if (symbol == null)
                     throw new AnalyzeError(ErrorCode.NotDeclared, token.getStartPos());
-                switch (symbol.getStorageType()) {
+                switch (symbol.getSymbolScope()) {
                     case global:
                         instructions.add(new Instruction(Operation.globa, symbol.getOffset()));
                         break;
@@ -801,38 +823,40 @@ public class Analyser {
                 if (opgElement.getType() != symbol.getSymbolType())
                     throw new AnalyzeError(ErrorCode.InvalidAssignment, opgElement.getStartPos());
                 instructions.add(new Instruction(Operation.store64));
-                return new OPGElement(SymbolType.VOID, assign.getStartPos());
-            } else if (nextIf(TokenType.L_PAREN) != null) {
-                SymbolType funcReturnType;
-                ArrayList<SymbolType> params;
+                return new OPGElement(Type.VOID, assign.getStartPos());
+            }
+            //函数调用表达式
+            else if (nextIf(TokenType.L_PAREN) != null) {
+                Type funcReturnType;
+                ArrayList<Type> params;
                 int callnameOffset = -1;
                 if (symbol == null) {
                     switch (token.getValueString()) {
                         case "getint":
                         case "getchar":
-                            funcReturnType = SymbolType.INT;
+                            funcReturnType = Type.INT;
                             params = new ArrayList<>();
                             break;
                         case "getdouble":
-                            funcReturnType = SymbolType.DOUBLE;
+                            funcReturnType = Type.DOUBLE;
                             params = new ArrayList<>();
                             break;
                         case "putint":
                         case "putchar":
                         case "putstr":
-                            funcReturnType = SymbolType.VOID;
-                            params = new ArrayList<SymbolType>() {{
-                                add(SymbolType.INT);
+                            funcReturnType = Type.VOID;
+                            params = new ArrayList<Type>() {{
+                                add(Type.INT);
                             }};
                             break;
                         case "putdouble":
-                            funcReturnType = SymbolType.VOID;
-                            params = new ArrayList<SymbolType>() {{
-                                add(SymbolType.DOUBLE);
+                            funcReturnType = Type.VOID;
+                            params = new ArrayList<Type>() {{
+                                add(Type.DOUBLE);
                             }};
                             break;
                         case "putln":
-                            funcReturnType = SymbolType.VOID;
+                            funcReturnType = Type.VOID;
                             params = new ArrayList<>();
                             break;
 
@@ -847,7 +871,7 @@ public class Analyser {
                 }
 
                 int stackSize;
-                if (funcReturnType == SymbolType.VOID)
+                if (funcReturnType == Type.VOID)
                     stackSize = 0;
                 else
                     stackSize = 1;
@@ -870,10 +894,12 @@ public class Analyser {
                 else
                     changedInstruction.add(new Instruction(Operation.call, symbol.getFuncOffset()));
                 return new OPGElement(funcReturnType, token.getStartPos());
-            } else {
+            }
+            //标识符表达式
+            else {
                 if (symbol == null)
                     throw new AnalyzeError(ErrorCode.NotDeclared, token.getStartPos());
-                switch (symbol.getStorageType()) {
+                switch (symbol.getSymbolScope()) {
                     case global:
                         changedInstruction.add(new Instruction(Operation.globa, symbol.getOffset()));
                         break;
@@ -896,27 +922,12 @@ public class Analyser {
             return element;
         } else
             throw new ExpectedTokenError(Arrays.asList(TokenType.UINT_LITERAL, TokenType.DOUBLE_LITERAL, TokenType.STRING_LITERAL, TokenType.CHAR_LITERAL, TokenType.IDENT, TokenType.MINUS), peek());
-//        }else if (check(TokenType.MINUS)){
-//            analyseNegateExpr();
-//        } else if (check(TokenType.L_PAREN)) {
-//            analyseGroupExpr();
-//        }
-//        while (check(TokenType.PLUS) || check(TokenType.MINUS) || check(TokenType.MUL) || check(TokenType.DIV) || check(TokenType.EQ) || check(TokenType.NEQ) || check(TokenType.LT) || check(TokenType.GT) || check(TokenType.GE) || check(TokenType.LE) || check(TokenType.AS_KW)) {
-//            if (nextIf(TokenType.AS_KW) != null) {
-//                SymbolType type = analyseType();
-//            } else {
-//                Token operator = next();
-//                switch (operator.getTokenType()) {
-//                    case PLUS:
-//                }
-//            }
-//        }
     }
 
     private OPGElement analyseNegateExpr(boolean isGlobal) throws CompileError {
         expect(TokenType.MINUS);
         OPGElement element = analyseOtherExpr(isGlobal);
-        if (element.getType() == SymbolType.INT) {
+        if (element.getType() == Type.INT) {
             if (isGlobal)
                 startInstructions.add(new Instruction(Operation.negi));
             else
@@ -931,13 +942,13 @@ public class Analyser {
     }
 
 
-    private SymbolType analyseType() throws CompileError {
+    private Type analyseType() throws CompileError {
         if (nextIf(TokenType.INT_TY) != null)
-            return SymbolType.INT;
+            return Type.INT;
         else if (nextIf(TokenType.DOUBLE_TY) != null)
-            return SymbolType.DOUBLE;
+            return Type.DOUBLE;
         else if (nextIf(TokenType.VOID_TY) != null)
-            return SymbolType.VOID;
+            return Type.VOID;
         else {
             List<TokenType> list = Arrays.asList(TokenType.INT_TY, TokenType.DOUBLE_TY, TokenType.VOID_TY);
             throw new ExpectedTokenError(list, peek());

@@ -1,6 +1,6 @@
 package symbol;
 
-public enum SymbolType {
+public enum Type {
     INT,
     VOID,
     DOUBLE,

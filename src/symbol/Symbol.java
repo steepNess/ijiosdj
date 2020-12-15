@@ -7,39 +7,39 @@ public class Symbol {
     private boolean isConstant = false;
     private boolean isInitialized = false;
     private boolean isFunction = false;
-    private SymbolType symbolType;
-    private ArrayList<SymbolType> params = null;
-    private StorageType storageType;
+    private Type type;
+    private ArrayList<Type> params = null;
+    private Scope scope;
     private int offset;
     private int funcOffset;
-    private int chain = -1;
+    private int conflictChain = -1;
 
-    public Symbol(String name, boolean isFunction, StorageType storageType, int offset, int funcOffset) {
+    public Symbol(String name, boolean isFunction, Scope scope, int offset, int funcOffset) {
         this.name = name;
         this.isFunction = isFunction;
-        this.storageType = storageType;
+        this.scope = scope;
         this.offset = offset;
         this.funcOffset=funcOffset;
         this.params=new ArrayList<>();
     }
 
-    public Symbol(String name, boolean isConstant, boolean isInitialized, SymbolType symbolType, StorageType storageType, int offset) {
+    public Symbol(String name, boolean isConstant, boolean isInitialized, Type type, Scope scope, int offset) {
         this.name = name;
         this.isConstant = isConstant;
         this.isInitialized = isInitialized;
-        this.symbolType = symbolType;
-        this.storageType = storageType;
+        this.type = type;
+        this.scope = scope;
         this.offset = offset;
     }
 
-    public Symbol(String name, boolean isConstant, boolean isInitialized, SymbolType symbolType, int chain, StorageType storageType, int offset) {
+    public Symbol(String name, boolean isConstant, boolean isInitialized, Type type, int chain, Scope scope, int offset) {
         this.name = name;
         this.isConstant = isConstant;
         this.isInitialized = isInitialized;
-        this.symbolType = symbolType;
-        this.storageType = storageType;
+        this.type = type;
+        this.scope = scope;
         this.offset = offset;
-        this.chain = chain;
+        this.conflictChain = chain;
     }
 
     public int getFuncOffset() {
@@ -58,11 +58,11 @@ public class Symbol {
         this.name = name;
     }
 
-    public ArrayList<SymbolType> getParams() {
+    public ArrayList<Type> getParams() {
         return params;
     }
 
-    public void setParams(ArrayList<SymbolType> params) {
+    public void setParams(ArrayList<Type> params) {
         this.params = params;
     }
 
@@ -90,20 +90,20 @@ public class Symbol {
         isInitialized = initialized;
     }
 
-    public SymbolType getSymbolType() {
-        return symbolType;
+    public Type getSymbolType() {
+        return type;
     }
 
-    public void setSymbolType(SymbolType symbolType) {
-        this.symbolType = symbolType;
+    public void setSymbolType(Type type) {
+        this.type = type;
     }
 
-    public int getChain() {
-        return chain;
+    public int getConflictChain() {
+        return conflictChain;
     }
 
-    public void setChain(int chain) {
-        this.chain = chain;
+    public void setConflictChain(int conflictChain) {
+        this.conflictChain = conflictChain;
     }
 
     public boolean isFunction() {
@@ -114,11 +114,11 @@ public class Symbol {
         isFunction = function;
     }
 
-    public StorageType getStorageType() {
-        return storageType;
+    public Scope getSymbolScope() {
+        return scope;
     }
 
-    public void setStorageType(StorageType storageType) {
-        this.storageType = storageType;
+    public void setStorageType(Scope scope) {
+        this.scope = scope;
     }
 }

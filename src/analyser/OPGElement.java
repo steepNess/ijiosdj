@@ -1,18 +1,18 @@
 package analyser;
 
-import symbol.SymbolType;
+import symbol.Type;
 import util.Pos;
 
 public class OPGElement {
-    private SymbolType type;
+    private Type type;
     private Pos startPos;
 
-    public OPGElement(SymbolType type, Pos startPos) {
+    public OPGElement(Type type, Pos startPos) {
         this.type = type;
         this.startPos = startPos;
     }
 
-    public SymbolType getType() {
+    public Type getType() {
         return type;
     }
 
@@ -20,7 +20,7 @@ public class OPGElement {
         return startPos;
     }
 
-    public void setType(SymbolType type) {
+    public void setType(Type type) {
         this.type = type;
     }
 }

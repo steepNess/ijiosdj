@@ -1,20 +1,28 @@
 package instruction;
 
+import java.util.List;
+
 public class FunctionInstruction extends Instruction{
-    private int localCount;
-    private int returnCount;
-    private int paramCount;
+    //局部变量个数
+    private int localSlots;
+    //如果返回值是int，则为1；是double，则为2；是void，则为0
+    private int retSlots;
+    //参数列表大小
+    private int paramSlots;
+    //该函数在全局符号表内的位置
     private int offset;
+    //函数内指令
+    private List<Instruction> body;
 
     public FunctionInstruction(Operation operation) {
         super(operation);
     }
 
-    public FunctionInstruction(Operation operation, int localCount, int returnCount, int paramCount, int offset) {
+    public FunctionInstruction(Operation operation, int localSlots, int retSlots, int paramSlots, int offset) {
         super(operation);
-        this.localCount = localCount;
-        this.returnCount = returnCount;
-        this.paramCount = paramCount;
+        this.localSlots = localSlots;
+        this.retSlots = retSlots;
+        this.paramSlots = paramSlots;
         this.offset = offset;
     }
 
@@ -26,35 +34,35 @@ public class FunctionInstruction extends Instruction{
         this.offset = offset;
     }
 
-    public int getLocalCount() {
-        return localCount;
+    public int getLocalSlots() {
+        return localSlots;
     }
 
-    public void setLocalCount(int localCount) {
-        this.localCount = localCount;
+    public void setLocalSlots(int localSlots) {
+        this.localSlots = localSlots;
     }
 
-    public int getReturnCount() {
-        return returnCount;
+    public int getRetSlots() {
+        return retSlots;
     }
 
-    public void setReturnCount(int returnCount) {
-        this.returnCount = returnCount;
+    public void setRetSlots(int retSlots) {
+        this.retSlots = retSlots;
     }
 
-    public int getParamCount() {
-        return paramCount;
+    public int getParamSlots() {
+        return paramSlots;
     }
 
-    public void setParamCount(int paramCount) {
-        this.paramCount = paramCount;
+    public void setParamSlots(int paramSlots) {
+        this.paramSlots = paramSlots;
     }
 
     @Override
     public String toString() {
         return  getOperation()+"["+offset+
-                "] " + localCount +
-                " " + paramCount +
-                "->" + returnCount;
+                "] " + localSlots +
+                " " + paramSlots +
+                "->" + retSlots;
     }
 }

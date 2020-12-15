@@ -199,60 +199,7 @@ public class Tokenizer {
         return new Token(TokenType.STRING_LITERAL, token.toString(), startPos, it.currentPos());
     }
 
-    /*
-    private Token lexIdentOrKeyword() {
-        Pos startPos = it.currentPos();
-        StringBuilder tmpToken = new StringBuilder();
-        do {
-            tmpToken.append(it.nextChar());
-        } while (Character.isLetterOrDigit(it.peekChar()) || it.peekChar() == '_');
-        String readyToken = tmpToken.toString();
-        TokenType tmpType;
-        switch (readyToken) {
-            case "fn":
-                tmpType = TokenType.FN_KW;
-                break;
-            case "let":
-                tmpType = TokenType.LET_KW;
-                break;
-            case "const":
-                tmpType = TokenType.CONST_KW;
-                break;
-            case "as":
-                tmpType = TokenType.AS_KW;
-                break;
-            case "while":
-                tmpType = TokenType.WHILE_KW;
-                break;
-            case "if":
-                tmpType = TokenType.IF_KW;
-                break;
-            case "else":
-                tmpType = TokenType.ELSE_KW;
-                break;
-            case "return":
-                tmpType = TokenType.RETURN_KW;
-                break;
-            case "break":
-                tmpType = TokenType.BREAK_KW;
-                break;
-            case "continue":
-                tmpType = TokenType.CONTINUE_KW;
-                break;
-            case "int":
-                tmpType=TokenType.INT_TY;
-                break;
-            case "void":
-                tmpType=TokenType.VOID_TY;
-                break;
-            case "double":
-                tmpType=TokenType.DOUBLE_TY;
-                break;
-            default:
-                tmpType = TokenType.IDENT;
-        }
-        return new Token(tmpType, readyToken, startPos, it.currentPos());
-    }*/
+
     public final static HashMap<String,TokenType> keywordmap=new HashMap(){{
         put("fn", TokenType.FN_KW);
         put("let", TokenType.LET_KW);
@@ -283,35 +230,7 @@ public class Tokenizer {
         }
         return new Token(TokenType.IDENT, token, startPos, endPos);
     }
-    /*
-    private Token lexUIntOrDouble() throws TokenizeError {
-        Pos startPos = it.currentPos();
-        StringBuilder tmpToken = new StringBuilder();
-        do {
-            tmpToken.append(it.nextChar());
-        } while (Character.isDigit(it.peekChar()));
-        if (it.peekChar() == '.') {
-            tmpToken.append(it.nextChar());
-            if (Character.isDigit(it.peekChar())) {
-                do {
-                    tmpToken.append(it.nextChar());
-                } while (Character.isDigit(it.peekChar()));
-                if (it.peekChar() == 'E' || it.peekChar() == 'e') {
-                    tmpToken.append(it.nextChar());
-                    if(it.peekChar()=='+'||it.peekChar()=='-')
-                        tmpToken.append(it.nextChar());
-                    if (Character.isDigit(it.peekChar())) {
-                        do {
-                            tmpToken.append(it.nextChar());
-                        } while (Character.isDigit(it.peekChar()));
-                        return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
-                    } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
-                } else
-                    return new Token(TokenType.DOUBLE_LITERAL, Double.valueOf(tmpToken.toString()), startPos, it.currentPos());
-            } else throw new TokenizeError(ErrorCode.InvalidInput, it.previousPos());
-        }
-        return new Token(TokenType.UINT_LITERAL, Long.valueOf(tmpToken.toString()), startPos, it.currentPos());
-    }*/
+
     private Token lexUIntOrDouble() throws TokenizeError {
 
         String token = "" ;

@@ -2,8 +2,8 @@ package analyser;
 
 public class GlobalDef {
     public int is_const;
-    public byte[] array_count;
-    public byte[] array_items;
+    public byte[] array_count;   //变量占据字节数
+    public byte[] array_items;    //变量各字节的值
 
     public GlobalDef(int is_const,String global) {
         this.is_const = is_const;

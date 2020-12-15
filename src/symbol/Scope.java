@@ -1,5 +1,5 @@
 package symbol;
 
-public enum StorageType {
+public enum Scope {
     local,global,argument
 }
