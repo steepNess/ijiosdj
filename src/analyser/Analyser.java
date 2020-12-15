@@ -190,7 +190,26 @@ public class Analyser {
             return symbol;
         }
         else
-        {   //标识符重名，冲突记录用链域相连（冲突记录在符号表中的位置）
+        {
+            switch (scope)
+            {
+                case global:
+                    this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, globalNo++));
+                    if (isConstant)
+                        globals.add(new GlobalDef(1));
+                    else
+                        globals.add(new GlobalDef(0));
+                    break;
+                case argument:
+                    this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, argNo++));
+                    break;
+                case local:
+                    this.symbolTable.push(new Symbol(name, isConstant, isInitialized, type, symTbIndex, scope, localNo++));
+                    break;
+            }
+            System.out.println("add/dup:" + symbolTable.peek().getName());
+            //标识符重名，冲突记录用链域相连（冲突记录在符号表中的位置）
+            /*
             if (symTbIndex != null)
             {
                 switch (scope)
@@ -211,6 +230,7 @@ public class Analyser {
                 }
                 System.out.println("add/dup:" + symbolTable.peek().getName());
             }
+
             else
             {
                 switch (scope) {
@@ -229,29 +249,14 @@ public class Analyser {
                         break;
                 }
                 System.out.println("add:" + symbolTable.peek().getName());
-            }
+            }*/
             //散列表存放标识符在符号表中的位置，冲突则以最新记录为准
             this.hashTable.put(name, symbolTable.size() - 1);
         }
         return this.symbolTable.peek();
     }
 
-    private Symbol addFuncSymbol(String name, Pos curPos) throws AnalyzeError {
-        Integer location = this.hashTable.get(name);
-        if (location != null && location >= this.subProgramIndex.peek()) {
-            throw new AnalyzeError(ErrorCode.DuplicateDeclaration, curPos);
-        }
-        else
-        {
-            Symbol symbol = new Symbol(name, true, Scope.global, globalNo++, funcNo++);
-            this.symbolTable.push(symbol);
-            this.hashTable.put(name, symbolTable.size() - 1);
-            this.subProgramIndex.push(symbolTable.size());
-            globals.add(new GlobalDef(1,name));
-            System.out.println("add:" + symbolTable.peek().getName());
-            return symbol;
-        }
-    }
+
     //符号表定位 分程序索引项指向每个分程序的第一个记录项
     private void addBlock() {
         this.subProgramIndex.push(this.symbolTable.size());
@@ -319,8 +324,8 @@ public class Analyser {
         expect(TokenType.FN_KW);
         localNo = 0;
         Token IDENT = expect(TokenType.IDENT);
+        //加入符号表，全局变量表，散列表，分程序索引表，globalNo++,funcNo++
         Symbol funcSymbol=addSymbol(IDENT.getValueString(),false,false,Type.FUNCTION,Scope.global,IDENT.getStartPos());
-        //Symbol funcSymbol = addFuncSymbol(IDENT.getValueString(), IDENT.getStartPos());
         FunctionInstruction functionInstruction = new FunctionInstruction(Operation.func);
         instructions.add(functionInstruction);
         expect(TokenType.L_PAREN);
@@ -340,7 +345,6 @@ public class Analyser {
                 Symbol symbol = this.symbolTable.get(last - i);
                 symbol.setOffset(symbol.getOffset() + 1);
             }
-            //instructions.add(new Instruction(Operation.arga, 0));
         }
         functionInstruction.setOffset(funcSymbol.getOffset());
         boolean[] b = analyseBlockStmt(true, false, type, 0, null);
