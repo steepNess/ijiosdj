@@ -32,7 +32,7 @@ public class Symbol {
         this.offset = offset;
     }
 
-    public Symbol(String name, boolean isConstant, boolean isInitialized, Type type, int chain, Scope scope, int offset) {
+    public Symbol(String name, boolean isConstant, boolean isInitialized, Type type, Integer chain, Scope scope, int offset) {
         this.name = name;
         this.isConstant = isConstant;
         this.isInitialized = isInitialized;
