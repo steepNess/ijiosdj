@@ -59,6 +59,12 @@ public class WriteFile {
 
     public static byte[] longToByte(long val) {
         byte[] b = new byte[8];
+
+        for(int i=0;i<8;i++)
+        {
+            b[i]=(byte)(val>>8*(7-i)&0xff);
+        }
+        /*
         b[7] = (byte) (val & 0xff);
         b[6] = (byte) ((val >> 8) & 0xff);
         b[5] = (byte) ((val >> 16) & 0xff);
@@ -66,16 +72,22 @@ public class WriteFile {
         b[3] = (byte) ((val >> 32) & 0xff);
         b[2] = (byte) ((val >> 40) & 0xff);
         b[1] = (byte) ((val >> 48) & 0xff);
-        b[0] = (byte) ((val >> 56) & 0xff);
+        b[0] = (byte) ((val >> 56) & 0xff);*/
         return b;
     }
 
     public static byte[] intToByte(int val) {
         byte[] b = new byte[4];
+
+        for(int i=0;i<4;i++)
+        {
+            b[i]=(byte)(val>>8*(3-i)&0xff);
+        }
+        /*
         b[3] = (byte) (val & 0xff);
         b[2] = (byte) ((val >> 8) & 0xff);
         b[1] = (byte) ((val >> 16) & 0xff);
-        b[0] = (byte) ((val >> 24) & 0xff);
+        b[0] = (byte) ((val >> 24) & 0xff);*/
         return b;
     }
 
